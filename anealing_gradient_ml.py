@@ -130,7 +130,7 @@ def simulated_annealing_search(initial_params, X_train, Y_train, X_val, Y_val, m
     
     return best_params, best_score
 
-# Initial hyperparameters
+#this is something to be fixed bc we imediatly overwrite it.
 initial_best_params = {
     'lstm_units_list': [50],
     'gru_units_list': [],
@@ -196,12 +196,10 @@ base_model.fit(X_train, Y_train, batch_size=best_global_params['batch_size'], ep
 for i, (X, Y) in enumerate(datasets):
     print(f"Fine-tuning on dataset {i+1}")
     
-    # Normalize the data
     X_normalized, Y_normalized = scalers[i][0].transform(X), scalers[i][1].transform(Y.reshape(-1, 1))
     
     X_reshaped, Y_reshaped = reshape_data(pd.DataFrame(X_normalized), pd.DataFrame(Y_normalized), best_global_params['look_back'])
     
-    # Split the data into training and val
     X_train, X_val, Y_train, Y_val = train_test_split(X_reshaped, Y_reshaped, test_size=0.2, random_state=42)
     
     fine_tuned_model = tf.keras.models.clone_model(base_model)
@@ -209,9 +207,9 @@ for i, (X, Y) in enumerate(datasets):
     fine_tuned_model.compile(optimizer=best_global_params['optimizer'], loss='mse') 
     fine_tuned_model.fit(X_train, Y_train, batch_size=best_global_params['batch_size'], epochs=2, verbose=1)
     
-    model_name = f'fine_tuned_model_dataset_{i+1}.keras'
+    model_name = f'fine_tuned_model_dataset_{i}.keras'
     fine_tuned_model.save(model_name)
-    print(f"Saved fine-tuned model for dataset {i+1} as {model_name}')
+    print(f"Saved fine-tuned model for dataset {i} as {model_name}')
 
 
 
@@ -229,7 +227,6 @@ def simulated_annealing_search(initial_params, X_train, Y_train, X_val, Y_val, m
     for iteration in range(max_iterations):
         improved = False
         
-        # Scale the step sizes based on the current temperature
         param_steps = {
             'lstm_units_list': [int(temperature * 10), int(-temperature * 10)],
             'gru_units_list': [int(temperature * 10), int(-temperature * 10)],  
@@ -267,34 +264,34 @@ def simulated_annealing_search(initial_params, X_train, Y_train, X_val, Y_val, m
         
         for key in param_steps:
             current_value = current_params[key]
-            if isinstance(current_value, list):  # Handle lists like lstm_units_list, gru_units_list, etc.
+            if isinstance(current_value, list):  
                 for i in range(len(current_value)):
                     for step in param_steps[key]:
                         new_value = current_value[i] + step
-                        if new_value > 0:  # Ensure the parameters remain positive and valid
+                        if new_value > 0: 
                             new_params = current_params.copy()
                             new_params[key][i] = new_value
                             score = evaluate_model(new_params, X_train, Y_train, X_val, Y_val)
-                            if score < best_score - tolerance:  # Improvement found
+                            if score < best_score - tolerance: 
                                 best_score = score
                                 best_params = new_params
                                 improved = True
                                 print(f"Iteration {iteration + 1}: Improved {key} to {new_value} with score {best_score}")
-            else:  # Handle scalar parameters like dropout_rate, batch_size, etc.
+            else: #handle the scalar params
                 for step in param_steps[key]:
                     new_value = current_value + step
-                    if new_value > 0:  # Ensure the parameters remain positive and valid
+                    if new_value > 0: #check params are positive 
                         new_params = current_params.copy()
                         new_params[key] = new_value
                         score = evaluate_model(new_params, X_train, Y_train, X_val, Y_val)
-                        if score < best_score - tolerance:  # Improvement found
+                        if score < best_score - tolerance:  #yay
                             best_score = score
                             best_params = new_params
                             improved = True
                             print(f"Iteration {iteration + 1}: Improved {key} to {new_value} with score {best_score}")
         
         if not improved: 
-            print(f"No further improvements after {iteration + 1} iterations.")
+            print(f"No further improvements after {iteration+1} iterations.")
             break
         
         temperature *= cooling_rate
